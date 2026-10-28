@@ -37,9 +37,9 @@ Indian English only — there is no Tamil, Telugu, Bengali, Marathi, Gujarati, K
 Malayalam, Odia or Punjabi model. So the *source* video has to be in Hindi or English.
 (Translation *into* all of those languages works, because ML Kit has them.)
 
-Translation covers: Hindi, Bengali, Gujarati, Kannada, Malayalam, Marathi, Tamil, Telugu,
-Urdu and English. Punjabi and Odia are not in ML Kit, so those two are rejected with a
-clear message rather than producing garbage.
+Translation covers: Hindi, Bengali, Gujarati, Kannada, Marathi, Tamil, Telugu, Urdu and
+English. ML Kit has no offline model for Malayalam, Punjabi or Odia, so those three are
+rejected with a clear message rather than producing garbage.
 
 **Voice quality is the phone's.** Google TTS is intelligible but flat — no cloning, no
 emotion, nothing like Bulbul or ElevenLabs. If a language has no voice data installed,

@@ -236,7 +236,6 @@ public final class OfflineEngine {
             case "bn-IN": return TranslateLanguage.BENGALI;
             case "gu-IN": return TranslateLanguage.GUJARATI;
             case "kn-IN": return TranslateLanguage.KANNADA;
-            case "ml-IN": return TranslateLanguage.MALAYALAM;
             case "mr-IN": return TranslateLanguage.MARATHI;
             case "ta-IN": return TranslateLanguage.TAMIL;
             case "te-IN": return TranslateLanguage.TELUGU;
