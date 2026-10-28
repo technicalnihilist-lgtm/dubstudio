@@ -87,10 +87,12 @@ public final class DubbingEngine {
 
     public static List<Result> run(Context ctx, Uri src, List<String> targets,
                                    String speaker, String tone, double originalVolume,
-                                   String apiKey, Listener listener) throws IOException {
+                                   boolean cloneVoice, String apiKey, Listener listener)
+            throws IOException {
 
         listener.onProgress("preparing", 3, "Reading the audio track…");
-        short[] pcm = Audio.decodeMono(ctx, src);
+        Audio.Decoded decoded = Audio.decode(ctx, src);
+        short[] pcm = decoded.mono;
         if (pcm.length < Audio.MIX_RATE / 2) {
             throw new IOException("That file has almost no audio in it.");
         }
@@ -141,6 +143,20 @@ public final class DubbingEngine {
         final String detectedLang = detected;
         listener.onProgress("transcribing", 46, "Language detected: " + langName(detected));
 
+        // ---- learn the speaker's voice from a clean slice of the original ----
+        String voiceId = null;
+        if (cloneVoice) {
+            listener.onProgress("cloning", 47, "Learning the speaker's voice…");
+            try {
+                voiceId = Sarvam.createVoice(referenceClip(pcm, segs), apiKey,
+                        "dubstudio-" + System.currentTimeMillis(), detected);
+            } catch (IOException e) {
+                listener.onProgress("cloning", 47,
+                        "Voice cloning unavailable — using the selected voice instead.");
+            }
+        }
+        final String clonedVoice = voiceId;
+
         String fullTranscript = join(texts, " ");
         List<Result> results = new ArrayList<>();
         File outDir = new File(ctx.getExternalFilesDir(null), "out");
@@ -179,7 +195,9 @@ public final class DubbingEngine {
                 sjobs.add(pool.submit(new Callable<Void>() {
                     public Void call() throws Exception {
                         if (translated[idx].isEmpty()) return null;
-                        byte[] wav = Sarvam.speak(translated[idx], target, apiKey, speaker);
+                        byte[] wav = clonedVoice != null
+                                ? Sarvam.speakCloned(translated[idx], clonedVoice, apiKey, target)
+                                : Sarvam.speak(translated[idx], target, apiKey, speaker);
                         Audio.Pcm clip = Audio.readWav(wav);
                         short[] clipPcm = Audio.resample(clip.data, clip.rate, Audio.MIX_RATE);
 
@@ -217,8 +235,17 @@ public final class DubbingEngine {
             }
 
             if (originalVolume > 0.01) {
-                for (int k = 0; k < pcm.length && k < mix.length; k++) {
-                    int v = mix[k] + (int) Math.round(pcm[k] * originalVolume);
+                // A stereo source gives us the mid/side residual: (L-R)/2 keeps the music
+                // and ambience while cancelling the centred voice. Mono has no such trick,
+                // so the original is ducked under the dub instead.
+                short[] bed = decoded.bed;
+                double gain = originalVolume;
+                if (!hasBackground(bed)) {
+                    bed = decoded.mono;
+                    gain = originalVolume * 0.45;
+                }
+                for (int k = 0; k < bed.length && k < mix.length; k++) {
+                    int v = mix[k] + (int) Math.round(bed[k] * gain);
                     mix[k] = (short) Math.max(-32768, Math.min(32767, v));
                 }
             }
@@ -261,6 +288,47 @@ public final class DubbingEngine {
                 throw new IOException(cause == null ? "Unknown error" : cause.getMessage());
             }
         }
+    }
+
+
+    /** True when the side channel carries real audio, i.e. there is background to keep. */
+    private static boolean hasBackground(short[] bed) {
+        if (bed == null || bed.length == 0) return false;
+        long sum = 0;
+        int step = Math.max(1, bed.length / 20000);
+        int n = 0;
+        for (int i = 0; i < bed.length; i += step) {
+            sum += (long) bed[i] * bed[i];
+            n++;
+        }
+        return n > 0 && Math.sqrt((double) sum / n) > 25.0;
+    }
+
+    /** Concatenates up to 15 seconds of speech as a cloning reference. */
+    private static byte[] referenceClip(short[] pcm, List<int[]> segs) {
+        int want = Audio.MIX_RATE * 12;
+        List<short[]> parts = new ArrayList<>();
+        int have = 0;
+        for (int[] seg : segs) {
+            int len = seg[1] - seg[0];
+            short[] part = new short[len];
+            System.arraycopy(pcm, seg[0], part, 0, len);
+            parts.add(part);
+            have += len;
+            if (have >= want) break;
+        }
+        short[] all = new short[have];
+        int at = 0;
+        for (short[] part : parts) {
+            System.arraycopy(part, 0, all, at, part.length);
+            at += part.length;
+        }
+        if (all.length > Audio.MIX_RATE * 15) {
+            short[] cut = new short[Audio.MIX_RATE * 15];
+            System.arraycopy(all, 0, cut, 0, cut.length);
+            all = cut;
+        }
+        return Audio.toWav(Audio.resample(all, Audio.MIX_RATE, 16000), 16000);
     }
 
     private static String join(String[] parts, String sep) {

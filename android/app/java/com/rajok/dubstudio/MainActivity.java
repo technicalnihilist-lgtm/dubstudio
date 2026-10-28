@@ -170,7 +170,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void start(final String targetsJson, final String speaker, final String tone,
-                          final double volume) {
+                          final double volume, final boolean cloneVoice) {
             if (busy) return;
             if (picked == null) {
                 toastJs("Pick a video first.");
@@ -200,7 +200,8 @@ public class MainActivity extends Activity {
                 public void run() {
                     try {
                         final List<DubbingEngine.Result> results = DubbingEngine.run(
-                                MainActivity.this, uri, targets, speaker, tone, volume, key,
+                                MainActivity.this, uri, targets, speaker, tone, volume,
+                                cloneVoice, key,
                                 new DubbingEngine.Listener() {
                                     public void onProgress(final String stage, final int pct,
                                                            final String msg) {

@@ -16,6 +16,18 @@ new MP4 with the video stream untouched. You get one video per language, plus su
 targets Android 16 (API 36). **One permission: `INTERNET`.** No account, no ads, no
 tracking.
 
+## About "any API key"
+
+The key field accepts any string, and the app does not try to validate the format — but a
+key only works if the app knows how to talk to that provider, and today it speaks
+Sarvam AI. Support for another provider means writing that provider's three calls
+(speech-to-text, translate, text-to-speech) and mapping its voice model, so it is one
+integration at a time rather than a universal adapter. Voice cloning in particular has no
+equivalent at OpenAI or Google.
+
+If you have a specific provider's key you want to use, open an issue with the provider
+name.
+
 ## Permissions
 
 The app declares exactly one permission:
@@ -35,17 +47,46 @@ permission; the dubbed result is saved through `MediaStore`, which also needs no
 > for a declaration form, which is why v1.0 looked alarming. v1.1 declares
 > `minSdkVersion 26` and `targetSdkVersion 36` explicitly and the implied list is gone.
 
+## The speaker's own voice
+
+The default is **Same as the speaker**. Before dubbing, the app takes about twelve
+seconds of the cleanest speech from the video, sends it to Sarvam's Instant Voice
+Cloning endpoint (`POST /voices/create`) and gets back a `voice_id`. Every dubbed line is
+then spoken with `POST /voices/clone` in that voice — including across languages, so a
+Hindi speaker can come out sounding like themselves in Tamil.
+
+If cloning is unavailable (no quota for it, noisy reference, or a very short video), the
+app says so in the progress line and falls back to the voice you picked. You can also
+choose **Pick a voice** to skip cloning entirely and use one of twelve built-in speakers.
+
+> Cloning copies a real person's voice. Only dub videos you have the right to use that
+> way.
+
+## Keeping the background
+
+A stereo video gives a free trick: the voice is almost always mixed dead centre, so
+`(left - right) / 2` cancels it and leaves the music, traffic and room tone behind. The
+app decodes both channels, keeps that residual as the bed, and mixes it under the new
+voice at whatever level the *Keep background* slider says.
+
+Mono sources have no centre to cancel, so there the original is simply ducked to 45% of
+the chosen level — the old voice is still faintly there. If the side channel turns out to
+be empty, the app falls back to that same ducked mix.
+
+Set the slider to 0% for voice only, or around 60-100% to keep the music.
+
 ## What it does
 
 1. Reads the audio track out of the video with `MediaExtractor` + `MediaCodec` and
-   decodes it to mono PCM.
+   decodes it to mono PCM, keeping the mid/side residual as the background bed.
 2. Finds the spoken parts by measuring energy per 20 ms window, and cuts the audio into
    chunks of at most 26 seconds — the speech-to-text API's per-request limit.
 3. Transcribes each chunk with **Saaras** (`saaras:v3`). The language is detected
    automatically on the first chunk and reused for the rest, so you never have to say
    what language the video is in.
 4. Translates each chunk with **Mayura** (`mayura:v1`) into every language you picked.
-5. Records the voice for each chunk with **Bulbul** (`bulbul:v3`).
+5. Records the voice for each chunk — with **Instant Voice Cloning** by default, or
+   **Bulbul** (`bulbul:v3`) if you picked a voice.
 6. Places each voice clip at its original timestamp. If the translation runs longer than
    the slot it has to fit, the clip is sped up (up to 2×) so it stays in sync.
 7. Encodes the new audio to AAC and muxes it onto the **untouched** video stream with
@@ -142,8 +183,13 @@ See [desktop/README.md](desktop/README.md).
 
 ## Limitations
 
-- **No diarization.** Every voice in the video is replaced by one TTS voice. Multi-speaker
-  videos get a single narrator.
+- **No diarization.** Every voice in the video is replaced by one voice — the cloned one,
+  or a single narrator. Multi-speaker videos come out in the first speaker's voice.
+- **Cloning is Sarvam-only.** It is the one thing that cannot be swapped for another
+  provider, because it is not a commodity API. The desktop build in `desktop/` does not
+  have cloning yet.
+- **Background removal is a stereo trick.** If the voice is not centred in the mix, or the
+  file is mono, some of the original voice survives under the dub.
 - **No lip-sync.** The dub is timed to the original segments, not to mouth movements.
 - **Translation length.** Heavily expanded translations get sped up to fit their slot,
   which can sound rushed. Pick a slower voice or split the video.

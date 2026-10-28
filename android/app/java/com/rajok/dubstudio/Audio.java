@@ -88,8 +88,20 @@ public final class Audio {
         return out.toArray();
     }
 
+    /** Mono mix (for transcription and timing) plus the background bed. */
+    public static final class Decoded {
+        public short[] mono;
+        /** Mid/side residual: (L-R)/2, which cancels a centred voice and keeps music. */
+        public short[] bed;
+        public boolean stereo;
+    }
+
     /** Decode any audio track in the file to mono PCM at MIX_RATE. */
     public static short[] decodeMono(Context ctx, Uri uri) throws IOException {
+        return decode(ctx, uri).mono;
+    }
+
+    public static Decoded decode(Context ctx, Uri uri) throws IOException {
         MediaExtractor ex = new MediaExtractor();
         try {
             ex.setDataSource(ctx, uri, null);
@@ -114,7 +126,10 @@ public final class Audio {
             dec.start();
 
             ShortList out = new ShortList(1 << 18);
+            ShortList bed = new ShortList(1 << 18);
             Resampler rs = new Resampler(srcRate, MIX_RATE);
+            Resampler rsBed = new Resampler(srcRate, MIX_RATE);
+            short[] tmpBed = new short[1 << 14];
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             boolean inputDone = false, outputDone = false;
             short[] tmp = new short[1 << 14];
@@ -151,6 +166,7 @@ public final class Audio {
                         encoding = of.getInteger(MediaFormat.KEY_PCM_ENCODING);
                     }
                     rs = new Resampler(srcRate, MIX_RATE);
+                    rsBed = new Resampler(srcRate, MIX_RATE);
                 } else if (outIdx >= 0) {
                     ByteBuffer ob = dec.getOutputBuffer(outIdx);
                     if (ob != null && info.size > 0) {
@@ -162,24 +178,35 @@ public final class Audio {
                             if (tmp.length < frames) tmp = new short[frames];
                             java.nio.FloatBuffer fb = ob.order(ByteOrder.nativeOrder()).asFloatBuffer();
                             fb.position(info.offset / 4);
+                            if (tmpBed.length < frames) tmpBed = new short[frames];
                             for (int i = 0; i < frames; i++) {
-                                float sum = 0;
-                                for (int c = 0; c < channels; c++) sum += fb.get();
+                                float l = fb.get();
+                                float r = channels > 1 ? fb.get() : l;
+                                float sum = l + r;
+                                for (int c = 2; c < channels; c++) sum += fb.get();
                                 float v = sum / channels;
                                 tmp[i] = (short) Math.max(-32768, Math.min(32767, Math.round(v * 32767f)));
+                                float side = channels > 1 ? (l - r) / 2f : 0f;
+                                tmpBed[i] = (short) Math.max(-32768, Math.min(32767,
+                                        Math.round(side * 32767f)));
                             }
                         } else {
                             frames = info.size / (2 * channels);
                             if (tmp.length < frames) tmp = new short[frames];
                             java.nio.ShortBuffer sb = ob.order(ByteOrder.nativeOrder()).asShortBuffer();
                             sb.position(info.offset / 2);
+                            if (tmpBed.length < frames) tmpBed = new short[frames];
                             for (int i = 0; i < frames; i++) {
-                                int sum = 0;
-                                for (int c = 0; c < channels; c++) sum += sb.get();
+                                int l = sb.get();
+                                int r = channels > 1 ? sb.get() : l;
+                                int sum = l + r;
+                                for (int c = 2; c < channels; c++) sum += sb.get();
                                 tmp[i] = (short) (sum / channels);
+                                tmpBed[i] = (short) (channels > 1 ? (l - r) / 2 : 0);
                             }
                         }
                         rs.feed(tmp, frames, out);
+                        rsBed.feed(tmpBed, frames, bed);
                     }
                     dec.releaseOutputBuffer(outIdx, false);
                     if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) outputDone = true;
@@ -188,7 +215,11 @@ public final class Audio {
 
             dec.stop();
             dec.release();
-            return out.toArray();
+            Decoded d = new Decoded();
+            d.mono = out.toArray();
+            d.bed = bed.toArray();
+            d.stereo = channels > 1;
+            return d;
         } finally {
             ex.release();
         }

@@ -37,6 +37,12 @@
   label.field{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.09em;
     color:var(--muted);margin:18px 0 8px;font-weight:700}
   .langs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+  .segbtn{padding:11px 8px;border-radius:10px;border:1px solid var(--line);background:#0f1626;
+    color:var(--muted);font-size:12.5px;font-weight:600;font-family:inherit}
+  .segbtn.on{border-color:var(--accent);background:rgba(255,122,69,.13);color:var(--txt)}
+  .segbtn small{display:block;font-weight:400;font-size:10.5px;opacity:.75;margin-top:2px}
+  .hidden{display:none}
   .lang{display:flex;align-items:center;gap:6px;padding:10px 8px;border-radius:10px;
     border:1px solid var(--line);background:#0f1626;font-size:12px}
   .lang.on{border-color:var(--accent);background:rgba(255,122,69,.13)}
@@ -97,7 +103,11 @@
     <div class="langs" id="langs"></div>
 
     <label class="field">Voice</label>
-    <select id="speaker"></select>
+    <div class="seg" id="voicemode">
+      <button class="segbtn on" data-mode="clone">Same as the speaker<small>cloned from the video</small></button>
+      <button class="segbtn" data-mode="preset">Pick a voice<small>12 built-in voices</small></button>
+    </div>
+    <select id="speaker" class="hidden"></select>
 
     <label class="field">Translation tone</label>
     <select id="tone">
@@ -107,7 +117,7 @@
       <option value="code-mixed">Code-mixed</option>
     </select>
 
-    <label class="field">Keep original audio</label>
+    <label class="field">Keep background (music / noise)</label>
     <input type="range" id="vol" min="0" max="100" value="0" />
     <div class="volval"><span id="volval">0</span>% — voice only</div>
 
@@ -128,6 +138,7 @@
 <script>
 const $ = (id) => document.getElementById(id);
 let pickedName = "";
+let voiceMode = "clone";
 const chosen = new Set(["hi-IN"]);
 
 function init(){
@@ -154,6 +165,16 @@ function init(){
 }
 
 function sync(){ $("go").disabled = !(pickedName && chosen.size); }
+
+document.querySelectorAll("#voicemode .segbtn").forEach(function(b){
+  b.onclick = function(){
+    voiceMode = b.dataset.mode;
+    document.querySelectorAll("#voicemode .segbtn").forEach(function(x){
+      x.classList.toggle("on", x === b);
+    });
+    $("speaker").classList.toggle("hidden", voiceMode === "clone");
+  };
+});
 
 window.onFilePicked = function(name){
   pickedName = name || "video";
@@ -188,7 +209,7 @@ $("go").onclick = function(){
   $("progressWrap").style.display = "block";
   setBar(1, "Starting…");
   DubBridge.start(JSON.stringify([...chosen]), $("speaker").value, $("tone").value,
-                  (+$("vol").value)/100);
+                  (+$("vol").value)/100, voiceMode === "clone");
 };
 
 function setBar(p, msg){

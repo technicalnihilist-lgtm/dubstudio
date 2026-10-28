@@ -97,6 +97,80 @@ public final class Sarvam {
         }
     }
 
+    /** Generic multipart POST, returns the raw response body. */
+    private static String postMultipart(String path, String key, String[][] fields,
+                                        byte[] fileBytes, String fileName) throws IOException {
+        String boundary = "----dub" + System.nanoTime();
+        HttpURLConnection c = (HttpURLConnection) new URL(BASE + path).openConnection();
+        c.setRequestMethod("POST");
+        c.setConnectTimeout(20000);
+        c.setReadTimeout(180000);
+        c.setDoOutput(true);
+        c.setRequestProperty("api-subscription-key", key);
+        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        for (String[] f : fields) writeField(body, boundary, f[0], f[1]);
+        if (fileBytes != null) {
+            body.write(("--" + boundary + "\r\n"
+                    + "Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName
+                    + "\"\r\nContent-Type: audio/wav\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            body.write(fileBytes);
+            body.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+        body.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+
+        byte[] payload = body.toByteArray();
+        c.setFixedLengthStreamingMode(payload.length);
+        OutputStream os = c.getOutputStream();
+        os.write(payload);
+        os.close();
+
+        int code = c.getResponseCode();
+        InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
+        String text = in == null ? "" : read(in);
+        c.disconnect();
+        if (code != 200 && code != 201) throw new IOException("Sarvam " + code + ": " + trim(text));
+        return text;
+    }
+
+    /** Clones a voice from a short reference clip. Returns the voice_id. */
+    public static String createVoice(byte[] wav, String key, String name, String language)
+            throws IOException {
+        String text = postMultipart("/voices/create", key,
+                new String[][]{{"name", name}, {"language", language}}, wav, "reference.wav");
+        try {
+            JSONObject j = new JSONObject(text);
+            JSONObject data = j.optJSONObject("data");
+            String id = data != null ? data.optString("voice_id", "") : j.optString("voice_id", "");
+            if (id.isEmpty()) throw new IOException("voice cloning returned no voice_id");
+            return id;
+        } catch (org.json.JSONException e) {
+            throw new IOException("Bad response from voice cloning: " + trim(text));
+        }
+    }
+
+    /** Speaks `text` in a cloned voice. Returns WAV bytes. */
+    public static byte[] speakCloned(String text, String voiceId, String key, String language)
+            throws IOException {
+        String body = postMultipart("/voices/clone", key, new String[][]{
+                {"voice_id", voiceId},
+                {"text", text},
+                {"language_code", language},
+                {"output_audio_codec", "wav"},
+                {"speech_sample_rate", "22050"}
+        }, null, null);
+        try {
+            JSONObject j = new JSONObject(body);
+            String b64 = j.optString("audio", "");
+            if (b64.isEmpty()) b64 = j.optString("audio_b64", "");
+            if (b64.isEmpty()) throw new IOException("voice cloning returned no audio");
+            return Base64.decode(b64, Base64.DEFAULT);
+        } catch (org.json.JSONException e) {
+            throw new IOException("Bad response from voice cloning: " + trim(body));
+        }
+    }
+
     private static void writeField(ByteArrayOutputStream out, String boundary,
                                    String name, String value) throws IOException {
         out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\""
