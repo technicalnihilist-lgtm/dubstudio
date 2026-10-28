@@ -16,8 +16,10 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 import wave
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -28,6 +30,9 @@ SARVAM_BASE = os.environ.get("SARVAM_BASE_URL", "https://api.sarvam.ai").rstrip(
 STT_MODEL = os.environ.get("STT_MODEL", "saaras:v3")
 TTS_MODEL = os.environ.get("TTS_MODEL", "bulbul:v3")
 SR = 44100  # sample rate of our internal mix
+# Chunks are processed in parallel. 4 balances wall-clock speed against the
+# API's rate limits.
+WORKERS = int(os.environ.get("DUB_WORKERS", "4"))
 
 # Languages the TTS engine can speak (BCP-47 -> display name)
 TTS_LANGUAGES: Dict[str, str] = {
@@ -364,19 +369,29 @@ def dub_video(
             raise DubError("No speech found in this video. Is the audio silent?")
 
         # ---- 1. transcribe once (shared by every target language) ----
-        chunks: List[Chunk] = []
+        # Every chunk is sent at the same time instead of one after another.
+        chunks: List[Chunk] = [Chunk(start=s, end=e) for s, e in segments]
         detected = "" if input_language == "unknown" else input_language
-        for i, (s, e) in enumerate(segments):
-            frac = 0.06 + 0.44 * (i / len(segments))
-            progress("transcribing", frac,
-                     f"Listening to part {i + 1} of {len(segments)}…")
+        lock = threading.Lock()
+        heard = {"n": 0}
+
+        def _listen(i: int) -> None:
+            c = chunks[i]
             part = os.path.join(work, f"in_{i:04d}.wav")
-            cut_wav(src_wav, part, s, e - s, ffmpeg)
-            lang = detected or "unknown"
-            text, lang_out = transcribe(part, api_key, lang)
-            if lang_out and not detected:
-                detected = lang_out
-            chunks.append(Chunk(start=s, end=e, text=text, source_lang=lang_out or detected))
+            cut_wav(src_wav, part, c.start, c.end - c.start, ffmpeg)
+            text, lang_out = transcribe(part, api_key, detected or "unknown")
+            c.text = text
+            c.source_lang = lang_out or detected
+            with lock:
+                heard["n"] += 1
+                n = heard["n"]
+            progress("transcribing", 0.06 + 0.44 * n / len(chunks),
+                     f"Transcribed {n} of {len(chunks)} parts…")
+
+        progress("transcribing", 0.06, f"Listening to {len(chunks)} parts…")
+        with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+            list(pool.map(_listen, range(len(chunks))))
+        detected = next((c.source_lang for c in chunks if c.source_lang), detected)
 
         spoken = [c for c in chunks if c.text]
         if not spoken:
@@ -394,38 +409,56 @@ def dub_video(
             lang_name = TTS_LANGUAGES[target]
 
             progress("translating", base + span * 0.05, f"Translating into {lang_name}…")
-            translated: List[str] = []
-            for i, c in enumerate(chunks):
-                translated.append(
-                    translate(c.text, c.source_lang or detected, target, api_key, tone)
-                    if c.text else ""
-                )
+            translated: List[str] = [""] * len(chunks)
+
+            def _translate(i: int) -> None:
+                c = chunks[i]
+                if c.text:
+                    translated[i] = translate(c.text, c.source_lang or detected,
+                                              target, api_key, tone)
+
+            with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+                list(pool.map(_translate, range(len(chunks))))
 
             progress("speaking", base + span * 0.35, f"Recording the {lang_name} voice…")
             canvas = np.zeros(int((total + 2.0) * SR), dtype=np.float32)
-            placed = []
-            for i, (c, text) in enumerate(zip(chunks, translated)):
+            voiced = {"n": 0}
+
+            def _voice(i: int) -> str:
+                text = translated[i]
                 if not text:
-                    continue
-                progress("speaking", base + span * (0.35 + 0.55 * i / max(1, len(chunks))),
-                         f"{lang_name}: voicing part {i + 1} of {len(chunks)}…")
+                    return ""
                 raw = synthesize(text, target, api_key, speaker)
                 raw_path = os.path.join(work, f"tts_{li}_{i:04d}.wav")
                 with open(raw_path, "wb") as fh:
                     fh.write(raw)
                 fitted = os.path.join(work, f"fit_{li}_{i:04d}.wav")
+                c = chunks[i]
                 slot = (chunks[i + 1].start - c.start) if i + 1 < len(chunks) else (total - c.start)
                 slot = max(slot, 0.5)
                 raw_len = _wav_duration(raw_path)
-                tempo = 1.0
-                if raw_len > slot * 1.02:
-                    tempo = min(raw_len / slot, 2.0)
+                tempo = min(raw_len / slot, 2.0) if raw_len > slot * 1.02 else 1.0
                 to_mix_format(raw_path, fitted, ffmpeg, tempo)
-                samples = read_wav_mono(fitted)
-                at = int(c.start * SR)
+                with lock:
+                    voiced["n"] += 1
+                    n = voiced["n"]
+                progress("speaking", base + span * (0.35 + 0.55 * n / max(1, len(chunks))),
+                         f"{lang_name}: voiced {n} of {len(chunks)}…")
+                return fitted
+
+            with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+                fitted_paths = list(pool.map(_voice, range(len(chunks))))
+
+            # Mixing stays sequential and in order, so the timing stays exact.
+            placed = []
+            for i, path in enumerate(fitted_paths):
+                if not path:
+                    continue
+                samples = read_wav_mono(path)
+                at = int(chunks[i].start * SR)
                 end = min(len(canvas), at + len(samples))
                 canvas[at:end] += samples[: end - at]
-                placed.append((c.start, c.end, text))
+                placed.append((chunks[i].start, chunks[i].end, translated[i]))
 
             if original_volume > 0.001:
                 bed = read_wav_mono(_resample(src_wav, os.path.join(work, "bed.wav"), ffmpeg))

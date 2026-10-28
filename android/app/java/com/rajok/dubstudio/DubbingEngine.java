@@ -21,6 +21,12 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** The whole dubbing pipeline, on the phone. */
 public final class DubbingEngine {
@@ -94,21 +100,45 @@ public final class DubbingEngine {
         List<int[]> segs = findSegments(pcm, Audio.MIX_RATE);
         if (segs.isEmpty()) throw new IOException("No speech found — is the audio silent?");
 
+        // ---- everything below runs chunks in parallel ----
+        // The API calls dominate the runtime, so a 26-second chunk no longer waits
+        // for the one before it. Four at a time is a good balance against rate limits.
+        int workers = Math.min(4, Math.max(2, Runtime.getRuntime().availableProcessors() - 1));
+        ExecutorService pool = Executors.newFixedThreadPool(workers);
+        try {
+
         // ---- transcribe once ----
-        String[] texts = new String[segs.size()];
-        String detected = "";
+        final String[] texts = new String[segs.size()];
+        final String[] chunkLang = new String[segs.size()];
+        final AtomicInteger heard = new AtomicInteger();
+        List<Future<?>> jobs = new ArrayList<>();
+        listener.onProgress("transcribing", 10, "Listening to " + segs.size() + " parts at once…");
         for (int i = 0; i < segs.size(); i++) {
-            listener.onProgress("transcribing", 10 + (int) (35.0 * i / segs.size()),
-                    "Listening to part " + (i + 1) + " of " + segs.size() + "…");
-            int s = segs.get(i)[0], e = segs.get(i)[1];
-            short[] part = new short[e - s];
-            System.arraycopy(pcm, s, part, 0, e - s);
-            byte[] wav = Audio.toWav(Audio.resample(part, Audio.MIX_RATE, 16000), 16000);
-            String[] r = Sarvam.transcribe(wav, apiKey, detected.isEmpty() ? "unknown" : detected);
-            texts[i] = r[0] == null ? "" : r[0].trim();
-            if (detected.isEmpty() && r[1] != null && !r[1].isEmpty()) detected = r[1];
+            final int idx = i;
+            jobs.add(pool.submit(new Callable<Void>() {
+                public Void call() throws Exception {
+                    int s = segs.get(idx)[0], e = segs.get(idx)[1];
+                    short[] part = new short[e - s];
+                    System.arraycopy(pcm, s, part, 0, e - s);
+                    byte[] wav = Audio.toWav(Audio.resample(part, Audio.MIX_RATE, 16000), 16000);
+                    String[] r = Sarvam.transcribe(wav, apiKey, "unknown");
+                    texts[idx] = r[0] == null ? "" : r[0].trim();
+                    chunkLang[idx] = r[1] == null ? "" : r[1];
+                    int n = heard.incrementAndGet();
+                    listener.onProgress("transcribing", 10 + (int) (35.0 * n / segs.size()),
+                            "Transcribed " + n + " of " + segs.size() + " parts…");
+                    return null;
+                }
+            }));
+        }
+        awaitAll(jobs);
+
+        String detected = "";
+        for (String l : chunkLang) {
+            if (l != null && !l.isEmpty()) { detected = l; break; }
         }
         if (detected.isEmpty()) detected = "hi-IN";
+        final String detectedLang = detected;
         listener.onProgress("transcribing", 46, "Language detected: " + langName(detected));
 
         String fullTranscript = join(texts, " ");
@@ -123,34 +153,63 @@ public final class DubbingEngine {
             int span = (int) (54.0 / targets.size());
 
             listener.onProgress("translating", base + 2, "Translating into " + tName + "…");
-            String[] translated = new String[texts.length];
+            final String[] translated = new String[texts.length];
+            List<Future<?>> tjobs = new ArrayList<>();
             for (int i = 0; i < texts.length; i++) {
-                translated[i] = texts[i].isEmpty() ? ""
-                        : Sarvam.translate(texts[i], detected, target, apiKey, tone);
+                final int idx = i;
+                tjobs.add(pool.submit(new Callable<Void>() {
+                    public Void call() throws Exception {
+                        String src = (chunkLang[idx] == null || chunkLang[idx].isEmpty())
+                                ? detectedLang : chunkLang[idx];
+                        translated[idx] = texts[idx].isEmpty() ? ""
+                                : Sarvam.translate(texts[idx], src, target, apiKey, tone);
+                        return null;
+                    }
+                }));
             }
+            awaitAll(tjobs);
 
             listener.onProgress("speaking", base + span / 3, "Recording the " + tName + " voice…");
-            short[] mix = new short[(int) ((totalSec + 2.0) * Audio.MIX_RATE)];
+            final short[][] clips = new short[segs.size()][];
+            final AtomicInteger voiced = new AtomicInteger();
+            final int totalSamples = (int) ((totalSec + 2.0) * Audio.MIX_RATE);
+            List<Future<?>> sjobs = new ArrayList<>();
             for (int i = 0; i < segs.size(); i++) {
-                if (translated[i].isEmpty()) continue;
-                listener.onProgress("speaking", base + span / 3
-                                + (int) (span * 0.5 * i / Math.max(1, segs.size())),
-                        tName + ": voicing part " + (i + 1) + " of " + segs.size() + "…");
+                final int idx = i;
+                sjobs.add(pool.submit(new Callable<Void>() {
+                    public Void call() throws Exception {
+                        if (translated[idx].isEmpty()) return null;
+                        byte[] wav = Sarvam.speak(translated[idx], target, apiKey, speaker);
+                        Audio.Pcm clip = Audio.readWav(wav);
+                        short[] clipPcm = Audio.resample(clip.data, clip.rate, Audio.MIX_RATE);
 
-                byte[] wav = Sarvam.speak(translated[i], target, apiKey, speaker);
-                Audio.Pcm clip = Audio.readWav(wav);
-                short[] clipPcm = Audio.resample(clip.data, clip.rate, Audio.MIX_RATE);
+                        int startSample = segs.get(idx)[0];
+                        int slot = (idx + 1 < segs.size() ? segs.get(idx + 1)[0] : totalSamples)
+                                - startSample;
+                        if (slot < Audio.MIX_RATE / 2) slot = Audio.MIX_RATE / 2;
+                        if (clipPcm.length > slot) {
+                            double ratio = clipPcm.length / (double) slot;
+                            if (ratio > 2.0) ratio = 2.0;
+                            int newRate = (int) Math.round(Audio.MIX_RATE * ratio);
+                            clipPcm = Audio.resample(clipPcm, newRate, Audio.MIX_RATE);
+                        }
+                        clips[idx] = clipPcm;
+                        int n = voiced.incrementAndGet();
+                        listener.onProgress("speaking", base + span / 3
+                                        + (int) (span * 0.5 * n / Math.max(1, segs.size())),
+                                tName + ": voiced " + n + " of " + segs.size() + "…");
+                        return null;
+                    }
+                }));
+            }
+            awaitAll(sjobs);
 
-                int startSample = segs.get(i)[0];
-                int slot = (i + 1 < segs.size() ? segs.get(i + 1)[0] : mix.length) - startSample;
-                if (slot < Audio.MIX_RATE / 2) slot = Audio.MIX_RATE / 2;
-                if (clipPcm.length > slot) {
-                    double ratio = clipPcm.length / (double) slot;
-                    if (ratio > 2.0) ratio = 2.0;
-                    int newRate = (int) Math.round(Audio.MIX_RATE * ratio);
-                    clipPcm = Audio.resample(clipPcm, newRate, Audio.MIX_RATE);
-                }
-                int at = startSample;
+            // Mixing stays sequential and in order, so the timing stays exact.
+            short[] mix = new short[totalSamples];
+            for (int i = 0; i < segs.size(); i++) {
+                short[] clipPcm = clips[i];
+                if (clipPcm == null) continue;
+                int at = segs.get(i)[0];
                 for (int k = 0; k < clipPcm.length && at + k < mix.length; k++) {
                     int v = mix[at + k] + clipPcm[k];
                     mix[at + k] = (short) Math.max(-32768, Math.min(32767, v));
@@ -183,6 +242,25 @@ public final class DubbingEngine {
 
         listener.onProgress("done", 100, "Finished.");
         return results;
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /** Waits for every submitted chunk, turning the first failure into an IOException. */
+    private static void awaitAll(List<Future<?>> jobs) throws IOException {
+        for (Future<?> f : jobs) {
+            try {
+                f.get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Cancelled.");
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof IOException) throw (IOException) cause;
+                throw new IOException(cause == null ? "Unknown error" : cause.getMessage());
+            }
+        }
     }
 
     private static String join(String[] parts, String sep) {

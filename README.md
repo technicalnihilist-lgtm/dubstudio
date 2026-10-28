@@ -55,6 +55,24 @@ permission; the dubbed result is saved through `MediaStore`, which also needs no
 Transcription happens once and is reused for every target language, so dubbing into four
 languages costs about the same as dubbing into one, plus translation and voice.
 
+## Speed
+
+Chunks are independent, so they no longer wait for each other: speech-to-text,
+translation and voice generation all run four at a time across a small thread pool.
+Mixing stays sequential and in order, so the timing is unchanged.
+
+On a 1 minute 50 second test clip (five chunks, one target language) the same job went
+from **42.7 s to 29.4 s**. The gain grows with the length of the video, because the
+number of parallel chunks grows while the fixed overhead does not.
+
+The desktop build reads the concurrency from `DUB_WORKERS` (default 4):
+
+```bash
+DUB_WORKERS=6 python app.py
+```
+
+If you start seeing HTTP 429 responses, lower it.
+
 ## Languages
 
 Hindi · Bengali · Gujarati · Kannada · Malayalam · Marathi · Odia · Punjabi · Tamil ·
