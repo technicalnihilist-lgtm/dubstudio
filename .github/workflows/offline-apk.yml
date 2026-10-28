@@ -19,18 +19,26 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK packages
+      - name: Install Gradle
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-36" "build-tools;34.0.0" > /dev/null
+          curl -sSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          unzip -q /tmp/gradle.zip -d "$HOME"
+          echo "$HOME/gradle-8.9/bin" >> "$GITHUB_PATH"
+
+      - name: Install Android SDK packages
+        run: |
+          SDKMANAGER=$(ls /usr/local/lib/android/sdk/cmdline-tools/*/bin/sdkmanager | head -1)
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;34.0.0" || true
+          ls /usr/local/lib/android/sdk/platforms
 
       - name: Build debug APK
         working-directory: offline
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          gradle assembleDebug --no-daemon --stacktrace
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tail -60
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
