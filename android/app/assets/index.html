@@ -30,19 +30,13 @@
   .drop .hint{color:var(--muted);font-size:12px;margin-top:4px}
   .pick{display:inline-block;margin-top:10px;padding:10px 18px;border-radius:10px;font-size:14px;
     font-weight:600;color:#1a0d04;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
-  .fileline{display:none;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;
+  .fileline{display:none;align-items:center;gap:10px;margin-top:0;padding:10px 12px;
     background:#0f1626;border:1px solid var(--line);border-radius:10px;font-size:13px}
   .fileline.show{display:flex}
   .fileline .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   label.field{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.09em;
     color:var(--muted);margin:18px 0 8px;font-weight:700}
   .langs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
-  .seg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
-  .segbtn{padding:11px 8px;border-radius:10px;border:1px solid var(--line);background:#0f1626;
-    color:var(--muted);font-size:12.5px;font-weight:600;font-family:inherit}
-  .segbtn.on{border-color:var(--accent);background:rgba(255,122,69,.13);color:var(--txt)}
-  .segbtn small{display:block;font-weight:400;font-size:10.5px;opacity:.75;margin-top:2px}
-  .hidden{display:none}
   .lang{display:flex;align-items:center;gap:6px;padding:10px 8px;border-radius:10px;
     border:1px solid var(--line);background:#0f1626;font-size:12px}
   .lang.on{border-color:var(--accent);background:rgba(255,122,69,.13)}
@@ -50,12 +44,17 @@
     display:grid;place-items:center;font-size:10px;flex:0 0 auto}
   .lang.on .tick{background:var(--accent);border-color:var(--accent);color:#231000}
   select,input[type=text],input[type=password]{width:100%;background:#0f1626;color:var(--txt);
-    border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:14px;outline:none}
+    border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:14px;outline:none;
+    margin-bottom:8px;font-family:inherit}
+  select{margin-bottom:0}
   input[type=range]{width:100%;accent-color:var(--accent);margin-top:6px}
   .volval{color:var(--accent);font-weight:600;font-size:12px}
   button.go{width:100%;margin-top:18px;padding:15px;border:0;border-radius:12px;font-size:16px;
-    font-weight:700;color:#1a0d04;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+    font-weight:700;color:#1a0d04;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    font-family:inherit}
   button.go:disabled{opacity:.45}
+  button.ghost{width:100%;margin-top:10px;padding:12px;border-radius:12px;font-size:13px;
+    font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--line);font-family:inherit}
   .bar{height:8px;border-radius:99px;background:#0d1424;overflow:hidden;margin-top:12px}
   .bar>i{display:block;height:100%;width:0;border-radius:99px;
     background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .35s}
@@ -68,9 +67,15 @@
   .btnrow{display:flex;gap:8px}
   .btnrow a{flex:1;text-align:center;padding:10px;border-radius:9px;font-size:13px;
     text-decoration:none;background:#0f1626;border:1px solid var(--line);color:var(--txt)}
-  .keybox{display:none}
-  .keybox.show{display:block}
   .note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.45}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+  .segbtn{padding:11px 8px;border-radius:10px;border:1px solid var(--line);background:#0f1626;
+    color:var(--muted);font-size:12.5px;font-weight:600;font-family:inherit}
+  .segbtn.on{border-color:var(--accent);background:rgba(255,122,69,.13);color:var(--txt)}
+  .segbtn:disabled{opacity:.35}
+  .segbtn small{display:block;font-weight:400;font-size:10.5px;opacity:.75;margin-top:2px}
+  .hidden{display:none}
+  .active{font-size:11px;color:var(--accent-2);margin-top:6px}
 </style>
 </head>
 <body>
@@ -78,14 +83,7 @@
     <div class="logo">🎙️</div>
     <h1>DubStudio</h1>
   </header>
-  <p class="sub">Dub any video into 10 Indian languages or English — on this phone.</p>
-
-  <div class="card keybox" id="keybox">
-    <label class="field" style="margin-top:0">Sarvam API key</label>
-    <input type="password" id="keyinput" placeholder="sk_..." autocomplete="off" />
-    <button class="go" id="savekey">Save key</button>
-    <div class="note">Stored only on this device. Get one free at dashboard.sarvam.ai</div>
-  </div>
+  <p class="sub">Dub any video into 10 Indian languages or English, in the speaker's own voice.</p>
 
   <div class="card">
     <div class="drop" id="drop">
@@ -96,16 +94,21 @@
       <input type="file" id="file" accept="video/*,audio/*" hidden />
     </div>
     <label class="fileline" id="fileline" for="file">
-      <span>🎬</span><span class="name" id="fname">—</span><span style="color:#8fa0bf;font-size:11px">change</span>
+      <span>🎬</span><span class="name" id="fname">—</span>
+      <span style="color:#8fa0bf;font-size:11px">change</span>
     </label>
 
     <label class="field">Dub into</label>
     <div class="langs" id="langs"></div>
 
+    <label class="field">Voice engine</label>
+    <select id="engine"></select>
+    <div class="active" id="activeEngine"></div>
+
     <label class="field">Voice</label>
     <div class="seg" id="voicemode">
-      <button class="segbtn on" data-mode="clone">Same as the speaker<small>cloned from the video</small></button>
-      <button class="segbtn" data-mode="preset">Pick a voice<small>12 built-in voices</small></button>
+      <button class="segbtn on" data-mode="clone" id="clonebtn">Same as the speaker<small>cloned from the video</small></button>
+      <button class="segbtn" data-mode="preset">Pick a voice<small>from the engine</small></button>
     </div>
     <select id="speaker" class="hidden"></select>
 
@@ -122,12 +125,39 @@
     <div class="volval"><span id="volval">0</span>% — voice only</div>
 
     <button class="go" id="go" disabled>Dub my video</button>
+    <button class="ghost" id="opencfg">⚙ API keys &amp; providers</button>
 
     <div id="progressWrap" style="display:none">
       <div class="bar"><i id="bar"></i></div>
       <div class="stage"><span id="stage">Starting…</span><span id="pct">0%</span></div>
     </div>
     <div class="err" id="err"></div>
+  </div>
+
+  <div class="card hidden" id="cfg">
+    <h3 style="margin:0 0 4px;font-size:15px">API keys</h3>
+    <div class="note" style="margin-top:0">Paste whichever you have. Voice can come from any of
+      them; understanding the speech needs Sarvam, OpenAI or Gemini.</div>
+
+    <label class="field">Sarvam AI</label>
+    <input type="password" id="k_sarvam" placeholder="sk_..." autocomplete="off" />
+
+    <label class="field">OpenAI</label>
+    <input type="password" id="k_openai" placeholder="sk-..." autocomplete="off" />
+
+    <label class="field">ElevenLabs</label>
+    <input type="password" id="k_eleven" placeholder="your ElevenLabs key" autocomplete="off" />
+
+    <label class="field">Google Gemini</label>
+    <input type="password" id="k_gemini" placeholder="AIza..." autocomplete="off" />
+
+    <label class="field">Custom — any OpenAI-compatible server</label>
+    <input type="password" id="k_custom" placeholder="key (optional)" autocomplete="off" />
+    <input type="text" id="k_base" placeholder="https://api.groq.com/openai/v1" autocomplete="off" />
+    <input type="text" id="k_model" placeholder="tts model, e.g. tts-1" autocomplete="off" />
+
+    <button class="go" id="savekeys">Save keys</button>
+    <div class="note">Stored only on this device, in this app's private storage.</div>
   </div>
 
   <div class="card" id="results" style="display:none">
@@ -139,12 +169,71 @@
 const $ = (id) => document.getElementById(id);
 let pickedName = "";
 let voiceMode = "clone";
+let ENGINES = [];
 const chosen = new Set(["hi-IN"]);
+
+function loadInto(){
+  let s = {};
+  try { s = JSON.parse(DubBridge.settings()); } catch(e) {}
+  $("k_sarvam").value = s.sarvam || "";
+  $("k_openai").value = s.openai || "";
+  $("k_eleven").value = s.eleven || "";
+  $("k_gemini").value = s.gemini || "";
+  $("k_custom").value = s.customKey || "";
+  $("k_base").value   = s.customBase || "";
+  $("k_model").value  = s.customModel || "";
+  if (s.ttsEngine) $("engine").value = s.ttsEngine;
+}
+
+function hasKey(id){
+  if (id === "sarvam") return $("k_sarvam").value.trim() !== "";
+  if (id === "openai") return $("k_openai").value.trim() !== "";
+  if (id === "elevenlabs") return $("k_eleven").value.trim() !== "";
+  if (id === "gemini") return $("k_gemini").value.trim() !== "";
+  if (id === "custom") return $("k_base").value.trim() !== "";
+  return false;
+}
+
+function resolved(){
+  const sel = $("engine").value;
+  if (sel && sel !== "auto") return sel;
+  for (const e of ["sarvam","openai","elevenlabs","gemini","custom"]) if (hasKey(e)) return e;
+  return "";
+}
+
+function refreshEngine(){
+  const id = resolved();
+  const eng = ENGINES.find(e => e.id === id);
+  $("activeEngine").textContent = id
+    ? "Voice: " + (eng ? eng.name : id) + (hasKey("sarvam") || hasKey("openai") || hasKey("gemini")
+        ? "" : " · speech understanding needs Sarvam/OpenAI/Gemini")
+    : "No key yet — open API keys below";
+
+  const voices = eng ? eng.voices : [];
+  $("speaker").innerHTML = voices.map(v => `<option value="${v.id}">${v.label}</option>`).join("");
+
+  const canClone = !!(eng && eng.clone);
+  $("clonebtn").disabled = !canClone;
+  if (!canClone && voiceMode === "clone") setMode("preset");
+  $("speaker").classList.toggle("hidden", voiceMode === "clone");
+  $("voicemode").classList.toggle("hidden", !canClone && false);
+}
+
+function setMode(m){
+  voiceMode = m;
+  document.querySelectorAll("#voicemode .segbtn").forEach(b =>
+    b.classList.toggle("on", b.dataset.mode === m));
+  $("speaker").classList.toggle("hidden", m === "clone");
+}
+
+document.querySelectorAll("#voicemode .segbtn").forEach(function(b){
+  b.onclick = function(){ if (!b.disabled) setMode(b.dataset.mode); };
+});
+
+function sync(){ $("go").disabled = !(pickedName && chosen.size); }
 
 function init(){
   try{
-    if(!DubBridge.apiKey()) $("keybox").classList.add("show");
-
     const langs = JSON.parse(DubBridge.languages());
     $("langs").innerHTML = langs.map(l =>
       `<div class="lang${chosen.has(l.code)?" on":""}" data-code="${l.code}">
@@ -159,22 +248,36 @@ function init(){
       };
     });
 
-    const voices = JSON.parse(DubBridge.voices());
-    $("speaker").innerHTML = voices.map(v=>`<option value="${v.id}">${v.label}</option>`).join("");
-  }catch(e){ /* running outside the app */ }
+    ENGINES = JSON.parse(DubBridge.engines());
+    $("engine").innerHTML = `<option value="auto">Auto — use whatever key is filled</option>`
+      + ENGINES.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
+    loadInto();
+    refreshEngine();
+  }catch(e){ /* preview outside the app */ }
 }
 
-function sync(){ $("go").disabled = !(pickedName && chosen.size); }
-
-document.querySelectorAll("#voicemode .segbtn").forEach(function(b){
-  b.onclick = function(){
-    voiceMode = b.dataset.mode;
-    document.querySelectorAll("#voicemode .segbtn").forEach(function(x){
-      x.classList.toggle("on", x === b);
-    });
-    $("speaker").classList.toggle("hidden", voiceMode === "clone");
+$("engine").onchange = function(){ refreshEngine(); };
+$("file").onchange = function(){
+  if(this.files && this.files.length) window.onFilePicked(this.files[0].name);
+};
+$("opencfg").onclick = function(){ $("cfg").classList.toggle("hidden"); };
+$("savekeys").onclick = function(){
+  const s = {
+    sarvam: $("k_sarvam").value.trim(),
+    openai: $("k_openai").value.trim(),
+    eleven: $("k_eleven").value.trim(),
+    gemini: $("k_gemini").value.trim(),
+    customKey: $("k_custom").value.trim(),
+    customBase: $("k_base").value.trim(),
+    customModel: $("k_model").value.trim(),
+    ttsEngine: $("engine").value || "auto",
+    sttEngine: "auto"
   };
-});
+  DubBridge.saveSettings(JSON.stringify(s));
+  $("cfg").classList.add("hidden");
+  refreshEngine();
+  $("err").textContent = "";
+};
 
 window.onFilePicked = function(name){
   pickedName = name || "video";
@@ -186,21 +289,11 @@ window.onFilePicked = function(name){
   sync();
 };
 
-$("file").onchange = function(){
-  if(this.files && this.files.length){ window.onFilePicked(this.files[0].name); }
-};
-
 $("vol").oninput = function(){
   const v = +this.value;
   $("volval").textContent = v;
-  $("volval").parentElement.textContent = v + "% — " + (v===0 ? "voice only" : "original kept underneath");
-};
-
-$("savekey").onclick = function(){
-  const k = $("keyinput").value.trim();
-  if(!k) return;
-  DubBridge.saveApiKey(k);
-  $("keybox").classList.remove("show");
+  $("volval").parentElement.textContent = v + "% — "
+    + (v===0 ? "voice only, background dropped" : "background kept under the dub");
 };
 
 $("go").onclick = function(){

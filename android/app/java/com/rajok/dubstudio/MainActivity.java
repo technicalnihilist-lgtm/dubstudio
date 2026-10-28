@@ -137,13 +137,56 @@ public class MainActivity extends Activity {
     public class Bridge {
 
         @JavascriptInterface
-        public String apiKey() {
-            return prefs().getString("api_key", "");
+        public String settings() {
+            return Settings.load(MainActivity.this).toJson();
         }
 
         @JavascriptInterface
-        public void saveApiKey(String key) {
-            prefs().edit().putString("api_key", key == null ? "" : key.trim()).apply();
+        public void saveSettings(String json) {
+            Settings.fromJson(json).save(MainActivity.this);
+        }
+
+        /** Every engine, its display name, and the voices it offers. */
+        @JavascriptInterface
+        public String engines() {
+            try {
+                org.json.JSONArray arr = new org.json.JSONArray();
+                for (java.util.Map.Entry<String, String> e : Providers.ENGINE_NAMES.entrySet()) {
+                    String id = e.getKey();
+                    org.json.JSONObject o = new org.json.JSONObject();
+                    o.put("id", id);
+                    o.put("name", e.getValue());
+                    o.put("clone", Providers.supportsCloning(id));
+                    org.json.JSONArray vs = new org.json.JSONArray();
+                    String[] ids = Providers.VOICES.get(id);
+                    String[] labels = Providers.VOICE_LABELS.get(id);
+                    for (int i = 0; i < ids.length; i++) {
+                        org.json.JSONObject v = new org.json.JSONObject();
+                        v.put("id", ids[i]);
+                        v.put("label", labels != null && i < labels.length ? labels[i] : ids[i]);
+                        vs.put(v);
+                    }
+                    o.put("voices", vs);
+                    arr.put(o);
+                }
+                return arr.toString();
+            } catch (Exception e) {
+                return "[]";
+            }
+        }
+
+        /** Which engine will actually run, once "auto" is resolved. */
+        @JavascriptInterface
+        public String activeEngines() {
+            Settings s = Settings.load(MainActivity.this);
+            try {
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("tts", s.ttsProvider());
+                o.put("stt", s.sttProvider());
+                return o.toString();
+            } catch (Exception e) {
+                return "{}";
+            }
         }
 
         @JavascriptInterface
@@ -176,9 +219,13 @@ public class MainActivity extends Activity {
                 toastJs("Pick a video first.");
                 return;
             }
-            final String key = prefs().getString("api_key", "");
-            if (key.isEmpty()) {
-                toastJs("Add your Sarvam API key first.");
+            final Settings settings = Settings.load(MainActivity.this);
+            if (settings.ttsProvider().isEmpty()) {
+                toastJs("Add at least one API key in Settings first.");
+                return;
+            }
+            if (settings.sttProvider().isEmpty()) {
+                toastJs("Add a Sarvam, OpenAI or Gemini key so the speech can be understood.");
                 return;
             }
             final List<String> targets = new ArrayList<>();
@@ -201,7 +248,7 @@ public class MainActivity extends Activity {
                     try {
                         final List<DubbingEngine.Result> results = DubbingEngine.run(
                                 MainActivity.this, uri, targets, speaker, tone, volume,
-                                cloneVoice, key,
+                                cloneVoice, settings,
                                 new DubbingEngine.Listener() {
                                     public void onProgress(final String stage, final int pct,
                                                            final String msg) {

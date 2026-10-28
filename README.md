@@ -6,9 +6,9 @@ Pick a video, tick the languages you want, press one button. DubStudio listens t
 original speech, translates it, records a new voice in the target language, and writes a
 new MP4 with the video stream untouched. You get one video per language, plus subtitles.
 
-| Home | Dubbing | Results |
-|---|---|---|
-| ![home](screenshots/01-home.png) | ![progress](screenshots/02-progress.png) | ![results](screenshots/03-results.png) |
+| Home | API keys | Dubbing | Results |
+|---|---|---|---|
+| ![home](screenshots/01-home.png) | ![keys](screenshots/02-providers.png) | ![progress](screenshots/03-progress.png) | ![results](screenshots/04-results.png) |
 
 ## Download
 
@@ -16,17 +16,36 @@ new MP4 with the video stream untouched. You get one video per language, plus su
 targets Android 16 (API 36). **One permission: `INTERNET`.** No account, no ads, no
 tracking.
 
-## About "any API key"
+## Voice providers — bring any key
 
-The key field accepts any string, and the app does not try to validate the format — but a
-key only works if the app knows how to talk to that provider, and today it speaks
-Sarvam AI. Support for another provider means writing that provider's three calls
-(speech-to-text, translate, text-to-speech) and mapping its voice model, so it is one
-integration at a time rather than a universal adapter. Voice cloning in particular has no
-equivalent at OpenAI or Google.
+There is no single provider lock-in for the voice. Paste whichever keys you have in
+**API keys & providers** and pick an engine, or leave it on *Auto* and the app uses
+whatever is filled.
 
-If you have a specific provider's key you want to use, open an issue with the provider
-name.
+| Engine | Voice | Speech to text | Translate | Voice cloning |
+|---|---|---|---|---|
+| Sarvam AI | Bulbul `bulbul:v3` | Saaras `saaras:v3` | Mayura `mayura:v1` | **yes** |
+| OpenAI | `tts-1` | `whisper-1` | `gpt-4o-mini` | no |
+| ElevenLabs | `eleven_multilingual_v2` | — | — | no |
+| Google Gemini | `gemini-2.5-flash-preview-tts` | `gemini-2.5-flash` | `gemini-2.5-flash` | no |
+| Custom | any OpenAI-compatible `/audio/speech` | — | — | no |
+
+The **Custom** row is the escape hatch for anything that speaks the OpenAI audio API —
+Groq, Together, DeepInfra, a local server, an OpenAI-compatible proxy. Give it a base URL
+like `https://api.groq.com/openai/v1` and a TTS model name.
+
+You can mix and match. An ElevenLabs key for the voice plus an OpenAI key for the
+transcript is a valid setup: ElevenLabs cannot transcribe, so the app quietly uses
+OpenAI or Gemini for that half. If no key can transcribe, it says so before starting
+rather than failing halfway.
+
+Audio formats are handled per provider: OpenAI returns WAV, ElevenLabs is asked for
+`pcm_44100`, Gemini returns raw 24 kHz PCM, and all three are decoded to the same
+internal mix rate.
+
+**Cloning is the one exception.** Instant Voice Cloning exists at Sarvam and not at the
+others, so *Same as the speaker* is only offered when the resolved engine is Sarvam; the
+button greys out otherwise and the picked voice is used instead.
 
 ## Permissions
 
@@ -186,8 +205,8 @@ See [desktop/README.md](desktop/README.md).
 - **No diarization.** Every voice in the video is replaced by one voice — the cloned one,
   or a single narrator. Multi-speaker videos come out in the first speaker's voice.
 - **Cloning is Sarvam-only.** It is the one thing that cannot be swapped for another
-  provider, because it is not a commodity API. The desktop build in `desktop/` does not
-  have cloning yet.
+  provider, because it is not a commodity API. The desktop build in `desktop/` still
+  speaks Sarvam only and has no cloning.
 - **Background removal is a stereo trick.** If the voice is not centred in the mix, or the
   file is mono, some of the original voice survives under the dub.
 - **No lip-sync.** The dub is timed to the original segments, not to mouth movements.

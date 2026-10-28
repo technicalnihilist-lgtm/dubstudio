@@ -87,7 +87,7 @@ public final class DubbingEngine {
 
     public static List<Result> run(Context ctx, Uri src, List<String> targets,
                                    String speaker, String tone, double originalVolume,
-                                   boolean cloneVoice, String apiKey, Listener listener)
+                                   boolean cloneVoice, Settings settings, Listener listener)
             throws IOException {
 
         listener.onProgress("preparing", 3, "Reading the audio track…");
@@ -123,7 +123,7 @@ public final class DubbingEngine {
                     short[] part = new short[e - s];
                     System.arraycopy(pcm, s, part, 0, e - s);
                     byte[] wav = Audio.toWav(Audio.resample(part, Audio.MIX_RATE, 16000), 16000);
-                    String[] r = Sarvam.transcribe(wav, apiKey, "unknown");
+                    String[] r = Providers.transcribe(wav, settings);
                     texts[idx] = r[0] == null ? "" : r[0].trim();
                     chunkLang[idx] = r[1] == null ? "" : r[1];
                     int n = heard.incrementAndGet();
@@ -148,7 +148,7 @@ public final class DubbingEngine {
         if (cloneVoice) {
             listener.onProgress("cloning", 47, "Learning the speaker's voice…");
             try {
-                voiceId = Sarvam.createVoice(referenceClip(pcm, segs), apiKey,
+                voiceId = Sarvam.createVoice(referenceClip(pcm, segs), settings.sarvam,
                         "dubstudio-" + System.currentTimeMillis(), detected);
             } catch (IOException e) {
                 listener.onProgress("cloning", 47,
@@ -178,7 +178,7 @@ public final class DubbingEngine {
                         String src = (chunkLang[idx] == null || chunkLang[idx].isEmpty())
                                 ? detectedLang : chunkLang[idx];
                         translated[idx] = texts[idx].isEmpty() ? ""
-                                : Sarvam.translate(texts[idx], src, target, apiKey, tone);
+                                : Providers.translate(texts[idx], src, target, tone, settings);
                         return null;
                     }
                 }));
@@ -195,10 +195,8 @@ public final class DubbingEngine {
                 sjobs.add(pool.submit(new Callable<Void>() {
                     public Void call() throws Exception {
                         if (translated[idx].isEmpty()) return null;
-                        byte[] wav = clonedVoice != null
-                                ? Sarvam.speakCloned(translated[idx], clonedVoice, apiKey, target)
-                                : Sarvam.speak(translated[idx], target, apiKey, speaker);
-                        Audio.Pcm clip = Audio.readWav(wav);
+                        Audio.Pcm clip = Providers.speak(translated[idx], target, speaker,
+                                clonedVoice, settings);
                         short[] clipPcm = Audio.resample(clip.data, clip.rate, Audio.MIX_RATE);
 
                         int startSample = segs.get(idx)[0];

@@ -252,6 +252,19 @@ public final class Audio {
         public int rate;
     }
 
+    /** Wraps raw little-endian 16-bit mono PCM (what ElevenLabs and Gemini return). */
+    public static Pcm fromRawPcm(byte[] data, int rate) {
+        int n = data.length / 2;
+        short[] out = new short[n];
+        for (int i = 0; i < n; i++) {
+            out[i] = (short) ((data[2 * i] & 0xFF) | (data[2 * i + 1] << 8));
+        }
+        Pcm p = new Pcm();
+        p.data = out;
+        p.rate = rate;
+        return p;
+    }
+
     public static Pcm readWav(byte[] raw) throws IOException {
         if (raw.length < 12) throw new IOException("audio response too short");
         ByteBuffer bb = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN);
