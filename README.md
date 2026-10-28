@@ -12,8 +12,28 @@ new MP4 with the video stream untouched. You get one video per language, plus su
 
 ## Download
 
-**[⬇ DubStudio.apk](DubStudio.apk)** — 37 KB, signed, Android 8.0 (API 26) and up.
-No Play Store, no account, no ads.
+**[⬇ DubStudio.apk](DubStudio.apk)** — 38 KB, signed, Android 8.0 (API 26) and up,
+targets Android 16 (API 36). **One permission: `INTERNET`.** No account, no ads, no
+tracking.
+
+## Permissions
+
+The app declares exactly one permission:
+
+```
+android.permission.INTERNET
+```
+
+That is the whole list. Videos are opened with the system document picker
+(`ACTION_OPEN_DOCUMENT`), which grants access to that one file and needs no storage
+permission; the dubbed result is saved through `MediaStore`, which also needs none.
+
+> **Note on v1.0.** The first build shipped without a `<uses-sdk>` element in the
+> manifest, so Android treated it as `targetSdkVersion 1` and *implied* legacy
+> permissions — `READ_PHONE_STATE`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`
+> and friends. Google Play flags `READ_PHONE_STATE` as a sensitive permission and asks
+> for a declaration form, which is why v1.0 looked alarming. v1.1 declares
+> `minSdkVersion 26` and `targetSdkVersion 36` explicitly and the implied list is gone.
 
 ## What it does
 
@@ -115,12 +135,20 @@ See [desktop/README.md](desktop/README.md).
   build; the Android build is compile-verified and signed but has not been run on a
   physical device in this repository's CI. If something misbehaves, open an issue with
   the video format and the language you used.
+- **Play Store.** The APK targets API 36 and declares one permission, so it satisfies
+  Play's target-API and permission rules. Publishing also needs a Data safety form
+  (audio → collected, shared with Sarvam AI for processing, not used for tracking),
+  a privacy policy URL ([PRIVACY.md](PRIVACY.md)) and the AI-generated-content
+  declaration.
 
 ## Privacy
 
 Your video never leaves the device. Only short mono audio chunks (≤26 s) are sent to
 `api.sarvam.ai` for transcription, and the resulting text to the translation and
 voice endpoints. No analytics, no telemetry, no third-party SDKs.
+
+The full policy — including the Data safety answers to give Google Play — is in
+[PRIVACY.md](PRIVACY.md).
 
 ## Licence
 

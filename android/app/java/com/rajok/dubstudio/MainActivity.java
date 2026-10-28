@@ -4,8 +4,10 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.WindowInsets;
 import android.view.Window;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -63,6 +65,16 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+        // targetSdk 35+ draws edge to edge, so keep the UI clear of the system bars.
+        web.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+                v.setPadding(0, insets.getSystemWindowInsetTop(),
+                        0, insets.getSystemWindowInsetBottom());
+                return insets;
+            }
+        });
+
         web.addJavascriptInterface(new Bridge(), "DubBridge");
         web.loadUrl("file:///android_asset/index.html");
         setContentView(web);

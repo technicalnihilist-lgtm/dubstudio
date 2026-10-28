@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Builds DubStudio.apk without Gradle.
-# Needs JDK 17+, Android build-tools 34 and platform android-34.
+# Needs JDK 17+, Android build-tools 34+ and platform android-36.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 SDK="${ANDROID_SDK:-$HOME/Android/Sdk}"
 BT="${BUILD_TOOLS:-$(ls -d "$SDK"/build-tools/*/ 2>/dev/null | head -1)}"
-PLAT="${ANDROID_JAR:-$SDK/platforms/android-34/android.jar}"
+PLAT="${ANDROID_JAR:-$SDK/platforms/android-36/android.jar}"
 KS="${KEYSTORE:-$PWD/dubstudio.keystore}"
 OUT="$PWD/build"
 
