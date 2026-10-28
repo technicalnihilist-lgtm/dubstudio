@@ -1,0 +1,7 @@
+build/
+*.keystore
+.venv/
+__pycache__/
+jobs/
+.env
+*.pyc

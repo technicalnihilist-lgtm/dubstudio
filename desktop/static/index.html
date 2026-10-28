@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DubStudio — video dubbing in Indian languages</title>
+<style>
+  :root{
+    --bg:#0b0f1a; --panel:#131a2a; --panel-2:#1a2336; --line:#243049;
+    --txt:#e8edf7; --muted:#8fa0bf; --accent:#ff7a45; --accent-2:#ffb347;
+    --ok:#38d39f; --err:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; color:var(--txt);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+    background:
+      radial-gradient(900px 500px at 12% -10%, rgba(255,122,69,.18), transparent 60%),
+      radial-gradient(800px 500px at 90% 0%, rgba(88,120,255,.16), transparent 55%),
+      var(--bg);
+  }
+  .wrap{max-width:1020px;margin:0 auto;padding:40px 22px 70px}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));font-size:22px}
+  h1{font-size:24px;margin:0;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:14px;margin:6px 0 26px;line-height:1.5}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:18px;
+    box-shadow:0 18px 50px rgba(0,0,0,.28)}
+  .drop{
+    border:2px dashed #33425f;border-radius:16px;padding:38px 20px;text-align:center;
+    cursor:pointer;transition:.18s;background:rgba(255,255,255,.015)
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(255,122,69,.07)}
+  .drop .big{font-size:34px;margin-bottom:8px}
+  .drop .hint{color:var(--muted);font-size:13px;margin-top:6px}
+  .fileline{display:none;align-items:center;gap:12px;margin-top:16px;padding:12px 14px;
+    background:#0f1626;border:1px solid var(--line);border-radius:12px;font-size:14px}
+  .fileline.show{display:flex}
+  .fileline .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fileline .sz{color:var(--muted);font-size:12px}
+  video#preview{width:100%;max-height:280px;border-radius:12px;margin-top:14px;display:none;background:#000}
+  label.field{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--muted);margin:22px 0 10px;font-weight:600}
+  .langs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+  .lang{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:11px;
+    border:1px solid var(--line);background:#0f1626;cursor:pointer;font-size:14px;
+    transition:.15s;user-select:none}
+  .lang:hover{border-color:#3b4d70}
+  .lang.on{border-color:var(--accent);background:rgba(255,122,69,.13);color:#fff}
+  .lang .tick{width:16px;height:16px;border-radius:5px;border:1.5px solid #43537a;
+    display:grid;place-items:center;font-size:11px;flex:0 0 auto}
+  .lang.on .tick{background:var(--accent);border-color:var(--accent);color:#231000}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:640px){.row{grid-template-columns:1fr}}
+  select,input[type=range]{width:100%}
+  select{background:#0f1626;color:var(--txt);border:1px solid var(--line);
+    border-radius:11px;padding:11px 12px;font-size:14px;outline:none}
+  input[type=range]{accent-color:var(--accent);margin-top:8px}
+  .volval{color:var(--accent);font-weight:600;font-size:13px}
+  button.go{
+    width:100%;margin-top:24px;padding:15px;border:0;border-radius:13px;font-size:16px;
+    font-weight:700;letter-spacing:.01em;cursor:pointer;color:#1a0d04;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    transition:.15s
+  }
+  button.go:hover{filter:brightness(1.07)}
+  button.go:disabled{opacity:.45;cursor:not-allowed;filter:none}
+  .bar{height:9px;border-radius:99px;background:#0d1424;overflow:hidden;margin-top:14px}
+  .bar > i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .4s}
+  .stage{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:10px}
+  .out{display:flex;gap:16px;padding:16px 0;border-top:1px solid var(--line)}
+  .out:first-child{border-top:0}
+  .out video{width:210px;border-radius:10px;background:#000;flex:0 0 auto}
+  .out .meta{flex:1;min-width:0}
+  .out h3{margin:2px 0 8px;font-size:16px}
+  .dl{display:inline-block;margin:6px 8px 0 0;padding:8px 14px;border-radius:9px;
+    font-size:13px;text-decoration:none;background:#0f1626;border:1px solid var(--line);color:var(--txt)}
+  .dl:hover{border-color:var(--accent);color:var(--accent)}
+  details{margin-top:10px;font-size:13px;color:var(--muted)}
+  details summary{cursor:pointer;color:#a9b8d4}
+  .err{color:var(--err);font-size:14px;margin-top:12px}
+  .banner{padding:12px 14px;border-radius:11px;font-size:13px;margin-bottom:16px;
+    border:1px solid #6b3a1f;background:rgba(255,107,107,.09);color:#ffc9b5}
+  .banner.hide{display:none}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);
+    padding:4px 10px;border-radius:99px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🎙️</div>
+    <div>
+      <h1>DubStudio</h1>
+      <div class="pills">
+        <span class="pill">10 Indian languages + English</span>
+        <span class="pill">runs on your machine</span>
+      </div>
+    </div>
+  </header>
+  <p class="sub">Drop a video, pick the languages, and get a dubbed version back —
+    voice re-recorded, timing matched, subtitles included. Powered by Sarvam AI.</p>
+
+  <div id="banner" class="banner hide"></div>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <div class="big">📤</div>
+      <div><strong>Click to choose a video</strong> or drag it here</div>
+      <div class="hint">MP4, MOV, MKV, WEBM, AVI · up to a few hundred MB</div>
+      <input type="file" id="file" accept="video/*,audio/*" hidden />
+    </div>
+    <div class="fileline" id="fileline">
+      <span>🎬</span><span class="name" id="fname"></span>
+      <span class="sz" id="fsize"></span>
+    </div>
+    <video id="preview" controls></video>
+
+    <label class="field">Dub into</label>
+    <div class="langs" id="langs"></div>
+
+    <div class="row">
+      <div>
+        <label class="field">Voice</label>
+        <select id="speaker"></select>
+      </div>
+      <div>
+        <label class="field">Tone of translation</label>
+        <select id="tone">
+          <option value="formal">Formal</option>
+          <option value="modern-colloquial" selected>Modern colloquial (natural)</option>
+          <option value="classic-colloquial">Classic colloquial</option>
+          <option value="code-mixed">Code-mixed (Hinglish style)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="field">Spoken language in the video</label>
+        <select id="inputlang"><option value="unknown">Detect automatically</option></select>
+      </div>
+      <div>
+        <label class="field">Keep original audio (music / background)</label>
+        <input type="range" id="vol" min="0" max="100" value="0" />
+        <div class="volval"><span id="volval">0</span>% — voice only</div>
+      </div>
+    </div>
+
+    <button class="go" id="go" disabled>Dub my video</button>
+
+    <div id="progressWrap" style="display:none">
+      <div class="bar"><i id="bar"></i></div>
+      <div class="stage"><span id="stage">Starting…</span><span id="pct">0%</span></div>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card" id="results" style="display:none">
+    <h2 style="margin:0 0 6px;font-size:17px">Your dubbed videos</h2>
+    <div id="outlist"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let file = null;
+const chosen = new Set(["hi-IN"]);
+
+async function boot(){
+  try{
+    const r = await fetch("/api/health");
+    const h = await r.json();
+    const banner = $("banner");
+    const problems = [];
+    if(!h.ffmpeg) problems.push("ffmpeg is missing — install it and restart the app.");
+    if(!h.api_key) problems.push("SARVAM_API_KEY is not set in your .env file.");
+    if(problems.length){ banner.textContent = problems.join(" "); banner.classList.remove("hide"); }
+
+    $("langs").innerHTML = h.languages.map(l =>
+      `<div class="lang${chosen.has(l.code)?" on":""}" data-code="${l.code}">
+         <span class="tick">${chosen.has(l.code)?"✓":""}</span><span>${l.name}</span></div>`).join("");
+    document.querySelectorAll(".lang").forEach(el=>{
+      el.onclick = ()=>{
+        const c = el.dataset.code;
+        if(chosen.has(c)) chosen.delete(c); else chosen.add(c);
+        el.classList.toggle("on", chosen.has(c));
+        el.querySelector(".tick").textContent = chosen.has(c) ? "✓" : "";
+        sync();
+      };
+    });
+
+    $("speaker").innerHTML = h.voices.map(v=>`<option value="${v.id}">${v.label}</option>`).join("");
+    $("inputlang").innerHTML = `<option value="unknown">Detect automatically</option>` +
+      h.languages.map(l=>`<option value="${l.code}">${l.name}</option>`).join("");
+  }catch(e){
+    $("banner").textContent = "Cannot reach the app server. Is it running?";
+    $("banner").classList.remove("hide");
+  }
+}
+
+function sync(){ $("go").disabled = !(file && chosen.size); }
+
+const drop = $("drop");
+drop.onclick = ()=> $("file").click();
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop", e=>{ if(e.dataTransfer.files.length) pick(e.dataTransfer.files[0]); });
+$("file").onchange = e=>{ if(e.target.files.length) pick(e.target.files[0]); };
+
+function pick(f){
+  file = f;
+  $("fname").textContent = f.name;
+  $("fsize").textContent = (f.size/1048576).toFixed(1) + " MB";
+  $("fileline").classList.add("show");
+  const v = $("preview");
+  v.src = URL.createObjectURL(f); v.style.display = "block";
+  sync();
+}
+
+$("vol").oninput = e=>{
+  const v = +e.target.value;
+  $("volval").textContent = v;
+  $("volval").parentElement.textContent = v + "% — " + (v===0 ? "voice only" : "original kept underneath");
+};
+
+$("go").onclick = async ()=>{
+  if(!file || !chosen.size) return;
+  $("go").disabled = true;
+  $("err").textContent = "";
+  $("results").style.display = "none";
+  $("progressWrap").style.display = "block";
+  setBar(1, "Uploading…");
+
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("targets", JSON.stringify([...chosen]));
+  fd.append("speaker", $("speaker").value);
+  fd.append("tone", $("tone").value);
+  fd.append("input_language", $("inputlang").value);
+  fd.append("original_volume", (+$("vol").value)/100);
+
+  let jobId;
+  try{
+    const r = await fetch("/api/dub", {method:"POST", body: fd});
+    if(!r.ok){ throw new Error((await r.json()).detail || "Upload failed"); }
+    jobId = (await r.json()).job_id;
+  }catch(e){
+    fail(e.message); return;
+  }
+  poll(jobId);
+};
+
+function setBar(p, msg){
+  $("bar").style.width = Math.min(100, p) + "%";
+  $("pct").textContent = Math.round(p) + "%";
+  if(msg) $("stage").textContent = msg;
+}
+
+async function poll(id){
+  try{
+    const r = await fetch("/api/jobs/" + id);
+    const j = await r.json();
+    setBar(j.progress || 0, j.message || j.stage);
+    if(j.status === "done"){ render(j.outputs || []); $("go").disabled = false; return; }
+    if(j.status === "error"){ fail(j.message || "Something went wrong"); return; }
+    setTimeout(()=>poll(id), 1200);
+  }catch(e){ fail("Lost connection to the server."); }
+}
+
+function fail(msg){
+  $("err").textContent = msg;
+  $("progressWrap").style.display = "none";
+  $("go").disabled = false;
+}
+
+function render(outputs){
+  $("progressWrap").style.display = "none";
+  if(!outputs.length) return;
+  $("results").style.display = "block";
+  $("outlist").innerHTML = outputs.map(o=>`
+    <div class="out">
+      <video src="${o.video}" controls preload="metadata"></video>
+      <div class="meta">
+        <h3>${o.language_name}</h3>
+        <a class="dl" href="${o.video}" download>⬇ Download video</a>
+        ${o.srt ? `<a class="dl" href="${o.srt}" download>⬇ Subtitles (.srt)</a>` : ""}
+        <details><summary>What was said</summary>
+          <p style="color:#c6d2e6">${escapeHtml(o.translated || "")}</p></details>
+      </div>
+    </div>`).join("");
+  $("results").scrollIntoView({behavior:"smooth"});
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+boot();
+</script>
+</body>
+</html>
