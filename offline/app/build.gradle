@@ -1,0 +1,33 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.rajok.dubstudio'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.rajok.dubstudio"
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName "1.0-offline"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    lint { abortOnError false }
+}
+
+dependencies {
+    // offline speech recognition
+    implementation 'com.alphacephei:vosk-android:0.3.47'
+    // offline translation models, downloaded on first use
+    implementation 'com.google.mlkit:translate:17.0.3'
+}

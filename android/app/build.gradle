@@ -1,0 +1,52 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.rajok.dubstudio'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.rajok.dubstudio"
+        minSdk 26
+        targetSdk 36
+        versionCode 6
+        versionName "1.5"
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.gradle.xml'
+            java.srcDirs = ['java']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    signingConfigs {
+        rel {
+            storeFile file('../dubstudio.keystore')
+            storePassword 'dubstudio'
+            keyAlias 'dub'
+            keyPassword 'dubstudio'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.rel
+        }
+    }
+
+    lint { abortOnError false }
+    packaging { jniLibs { useLegacyPackaging false } }
+}
+
+dependencies {
+    implementation 'com.alphacephei:vosk-android:0.3.47'
+    implementation 'com.google.mlkit:translate:17.0.3'
+}

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>DubStudio</title>
+<style>
+  :root{
+    --bg:#0b0f1a; --panel:#131a2a; --panel-2:#1a2336; --line:#243049;
+    --txt:#e8edf7; --muted:#8fa0bf; --accent:#ff7a45; --accent-2:#ffb347; --err:#ff6b6b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; color:var(--txt); background:var(--bg);
+    font-family:-apple-system,Roboto,"Noto Sans",sans-serif;
+    padding:18px 16px 40px; min-height:100vh;
+    background-image:radial-gradient(600px 320px at 10% -6%, rgba(255,122,69,.20), transparent 62%),
+                     radial-gradient(520px 300px at 95% 0%, rgba(88,120,255,.16), transparent 58%);
+  }
+  header{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+  h1{font-size:20px;margin:0;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:13px;line-height:1.45;margin:8px 0 16px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);
+    border-radius:16px;padding:16px;margin-bottom:14px}
+  .drop{border:2px dashed #33425f;border-radius:14px;padding:22px 14px;text-align:center;background:rgba(255,255,255,.015)}
+  .drop.hidden{display:none}
+  .drop .big{font-size:28px;margin-bottom:6px}
+  .drop .hint{color:var(--muted);font-size:12px;margin-top:4px}
+  .pick{display:inline-block;margin-top:10px;padding:10px 18px;border-radius:10px;font-size:14px;
+    font-weight:600;color:#1a0d04;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+  .fileline{display:none;align-items:center;gap:10px;margin-top:0;padding:10px 12px;
+    background:#0f1626;border:1px solid var(--line);border-radius:10px;font-size:13px}
+  .fileline.show{display:flex}
+  .fileline .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  label.field{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--muted);margin:18px 0 8px;font-weight:700}
+  .langs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+  .lang{display:flex;align-items:center;gap:6px;padding:10px 8px;border-radius:10px;
+    border:1px solid var(--line);background:#0f1626;font-size:12px}
+  .lang.on{border-color:var(--accent);background:rgba(255,122,69,.13)}
+  .lang .tick{width:15px;height:15px;border-radius:4px;border:1.5px solid #43537a;
+    display:grid;place-items:center;font-size:10px;flex:0 0 auto}
+  .lang.on .tick{background:var(--accent);border-color:var(--accent);color:#231000}
+  select,input[type=text],input[type=password]{width:100%;background:#0f1626;color:var(--txt);
+    border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:14px;outline:none;
+    margin-bottom:8px;font-family:inherit}
+  select{margin-bottom:0}
+  input[type=range]{width:100%;accent-color:var(--accent);margin-top:6px}
+  .volval{color:var(--accent);font-weight:600;font-size:12px}
+  button.go{width:100%;margin-top:18px;padding:15px;border:0;border-radius:12px;font-size:16px;
+    font-weight:700;color:#1a0d04;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    font-family:inherit}
+  button.go:disabled{opacity:.45}
+  button.ghost{width:100%;margin-top:10px;padding:12px;border-radius:12px;font-size:13px;
+    font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--line);font-family:inherit}
+  .bar{height:8px;border-radius:99px;background:#0d1424;overflow:hidden;margin-top:12px}
+  .bar>i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .35s}
+  .stage{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px;gap:10px}
+  .err{color:var(--err);font-size:13px;margin-top:10px;line-height:1.4}
+  .out{padding:14px 0;border-top:1px solid var(--line)}
+  .out:first-child{border-top:0;padding-top:0}
+  .out h3{margin:0 0 4px;font-size:15px}
+  .out .where{color:var(--muted);font-size:11px;word-break:break-all;margin-bottom:8px}
+  .btnrow{display:flex;gap:8px}
+  .btnrow a{flex:1;text-align:center;padding:10px;border-radius:9px;font-size:13px;
+    text-decoration:none;background:#0f1626;border:1px solid var(--line);color:var(--txt)}
+  .note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.45}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+  .segbtn{padding:11px 8px;border-radius:10px;border:1px solid var(--line);background:#0f1626;
+    color:var(--muted);font-size:12.5px;font-weight:600;font-family:inherit}
+  .segbtn.on{border-color:var(--accent);background:rgba(255,122,69,.13);color:var(--txt)}
+  .segbtn:disabled{opacity:.35}
+  .segbtn small{display:block;font-weight:400;font-size:10.5px;opacity:.75;margin-top:2px}
+  .hidden{display:none}
+  .active{font-size:11px;color:var(--accent-2);margin-top:6px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">🎙️</div>
+    <h1>DubStudio</h1>
+  </header>
+  <p class="sub">Dub any video into 10 Indian languages or English, in the speaker's own voice.</p>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <div class="big">📤</div>
+      <div style="font-size:14px">Choose a video to dub</div>
+      <div class="hint">MP4, MKV, MOV, WEBM</div>
+      <label class="pick" for="file">Pick video</label>
+      <input type="file" id="file" accept="video/*,audio/*" hidden />
+    </div>
+    <label class="fileline" id="fileline" for="file">
+      <span>🎬</span><span class="name" id="fname">—</span>
+      <span style="color:#8fa0bf;font-size:11px">change</span>
+    </label>
+
+    <label class="field">Dub into</label>
+    <div class="langs" id="langs"></div>
+
+    <label class="field">Video is spoken in</label>
+    <select id="vlang"></select>
+    <div class="active" id="activeEngine">Fully on-device · no API key · no internet after the models download</div>
+
+    <div class="note" style="margin-top:0">Uses the phone's own text-to-speech voice for the
+      chosen language. If a language has no voice installed, Android will ask you to add it.</div>
+
+
+    <label class="field">Keep background (music / noise)</label>
+    <input type="range" id="vol" min="0" max="100" value="0" />
+    <div class="volval"><span id="volval">0</span>% — voice only</div>
+
+    <button class="go" id="go" disabled>Dub my video</button>
+
+    <div id="progressWrap" style="display:none">
+      <div class="bar"><i id="bar"></i></div>
+      <div class="stage"><span id="stage">Starting…</span><span id="pct">0%</span></div>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card" id="results" style="display:none">
+    <h3 style="margin:0 0 10px;font-size:15px">Your dubbed videos</h3>
+    <div id="outlist"></div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let pickedName = "";
+let voiceMode = "clone";
+let ENGINES = [];
+const chosen = new Set(["hi-IN"]);
+
+function loadInto(){
+  return;
+  let s = {};
+  try { s = JSON.parse(DubBridge.settings()); } catch(e) {}
+  $("k_sarvam").value = s.sarvam || "";
+  $("k_openai").value = s.openai || "";
+  $("k_eleven").value = s.eleven || "";
+  $("k_gemini").value = s.gemini || "";
+  $("k_custom").value = s.customKey || "";
+  $("k_base").value   = s.customBase || "";
+  $("k_model").value  = s.customModel || "";
+}
+
+function hasKey(id){
+  if (id === "sarvam") return $("k_sarvam").value.trim() !== "";
+  if (id === "openai") return $("k_openai").value.trim() !== "";
+  if (id === "elevenlabs") return $("k_eleven").value.trim() !== "";
+  if (id === "gemini") return $("k_gemini").value.trim() !== "";
+  if (id === "custom") return $("k_base").value.trim() !== "";
+  return false;
+}
+
+function resolved(){
+  for (const e of ["sarvam","openai","elevenlabs","gemini","custom"]) if (hasKey(e)) return e;
+  return "";
+}
+
+function refreshEngine(){
+  return;
+  const id = resolved();
+  const eng = ENGINES.find(e => e.id === id);
+  $("activeEngine").textContent = id
+    ? "Voice: " + (eng ? eng.name : id) + (hasKey("sarvam") || hasKey("openai") || hasKey("gemini")
+        ? "" : " · speech understanding needs Sarvam/OpenAI/Gemini")
+    : "No key yet — open API keys below";
+
+  const voices = eng ? eng.voices : [];
+  $("speaker").innerHTML = voices.map(v => `<option value="${v.id}">${v.label}</option>`).join("");
+
+  const canClone = !!(eng && eng.clone);
+  $("clonebtn").disabled = !canClone;
+  if (!canClone && voiceMode === "clone") setMode("preset");
+  $("speaker").classList.toggle("hidden", voiceMode === "clone");
+  $("voicemode").classList.toggle("hidden", !canClone && false);
+}
+
+function setMode(m){
+  voiceMode = m;
+  document.querySelectorAll("#voicemode .segbtn").forEach(b =>
+    b.classList.toggle("on", b.dataset.mode === m));
+  $("speaker").classList.toggle("hidden", m === "clone");
+}
+
+document.querySelectorAll("#voicemode .segbtn").forEach(function(b){
+  b.onclick = function(){ if (!b.disabled) setMode(b.dataset.mode); };
+});
+
+function sync(){ $("go").disabled = !(pickedName && chosen.size); }
+
+function init(){
+  try{
+    const langs = JSON.parse(DubBridge.languages());
+    $("langs").innerHTML = langs.map(l =>
+      `<div class="lang${chosen.has(l.code)?" on":""}" data-code="${l.code}">
+         <span class="tick">${chosen.has(l.code)?"✓":""}</span><span>${l.name}</span></div>`).join("");
+    document.querySelectorAll(".lang").forEach(el=>{
+      el.onclick = ()=>{
+        const c = el.dataset.code;
+        if(chosen.has(c)) chosen.delete(c); else chosen.add(c);
+        el.classList.toggle("on", chosen.has(c));
+        el.querySelector(".tick").textContent = chosen.has(c) ? "✓" : "";
+        sync();
+      };
+    });
+
+    $("vlang").innerHTML = JSON.parse(DubBridge.sources())
+      .map((s,i) => `<option value="${s.code}">${s.name} — ${s.mb} MB model</option>`).join("");
+  }catch(e){ /* preview outside the app */ }
+}
+
+$("file").onchange = function(){
+  if(this.files && this.files.length) window.onFilePicked(this.files[0].name);
+};
+
+
+window.onFilePicked = function(name){
+  pickedName = name || "video";
+  $("fname").textContent = pickedName;
+  $("fileline").classList.add("show");
+  $("drop").classList.add("hidden");
+  $("results").style.display = "none";
+  $("err").textContent = "";
+  sync();
+};
+
+$("vol").oninput = function(){
+  const v = +this.value;
+  $("volval").textContent = v;
+  $("volval").parentElement.textContent = v + "% — "
+    + (v===0 ? "voice only, background dropped" : "background kept under the dub");
+};
+
+$("go").onclick = function(){
+  $("err").textContent = "";
+  $("results").style.display = "none";
+  $("progressWrap").style.display = "block";
+  setBar(1, "Starting…");
+  DubBridge.startOffline(JSON.stringify([...chosen]), $("vlang").value, (+$("vol").value)/100);
+};
+
+function setBar(p, msg){
+  $("bar").style.width = Math.min(100, p) + "%";
+  $("pct").textContent = Math.round(p) + "%";
+  if(msg) $("stage").textContent = msg;
+}
+
+window.onDubProgress = function(o){ setBar(o.pct, o.msg); };
+
+window.onDubError = function(msg){
+  $("err").textContent = msg;
+  $("progressWrap").style.display = "none";
+};
+
+window.onDubDone = function(json){
+  $("progressWrap").style.display = "none";
+  let items = [];
+  try{ items = JSON.parse(json); }catch(e){}
+  if(!items.length){ $("err").textContent = "Nothing came back."; return; }
+  $("results").style.display = "block";
+  $("outlist").innerHTML = items.map(o=>`
+    <div class="out">
+      <h3>${o.lang}</h3>
+      <div class="where">${o.displayName}</div>
+      <div class="btnrow">
+        <a href="#" onclick="DubBridge.play('${o.name}');return false;">▶ Play</a>
+        <a href="#" onclick="DubBridge.share('${o.name}');return false;">↗ Share</a>
+      </div>
+    </div>`).join("");
+};
+
+init();
+</script>
+</body>
+</html>
