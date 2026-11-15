@@ -1,3 +1,5 @@
+
+
 ## ☕ Donate / Buy me a coffee
 
 **Coming soon** — our donation options are on the way.
@@ -368,3 +370,4 @@ If you like this app and our work, please **star this repository** ⭐ and **[fo
 - **Telugu** (తెలుగు): ⭐ మీకు ఈ యాప్, మా పని నచ్చితే, దయచేసి రిపోజిటరీకి ఒక స్టార్ ఇచ్చి మమ్మల్ని ఫాలో అవ్వండి. ఒకవేళ మా పని మీకు నచ్చకపోతే, పర్వాలేదు — అది మీ ఇష్టం. మమ్మల్ని సందర్శించినందుకు ధన్యవాదాలు!
 
 </details>
+
