@@ -1,4 +1,14 @@
+# DubStudio
 
+**Dub any video into 10 Indian languages or English — on your phone.**
+
+Pick a video, tick the languages you want, press one button. DubStudio listens to the
+original speech, translates it, records a new voice in the target language, and writes a
+new MP4 with the video stream untouched. You get one video per language, plus subtitles.
+
+| Home | API keys | Dubbing | Results |
+|---|---|---|---|
+| ![home](screenshots/01-home.png) | ![keys](screenshots/02-providers.png) | ![progress](screenshots/03-progress.png) | ![results](screenshots/04-results.png) |
 
 ## ☕ Donate / Buy me a coffee
 
@@ -84,18 +94,6 @@ If you like our work, you can support us with a donation. We are bringing this v
 </details>
 
 ---
-
-# DubStudio
-
-**Dub any video into 10 Indian languages or English — on your phone.**
-
-Pick a video, tick the languages you want, press one button. DubStudio listens to the
-original speech, translates it, records a new voice in the target language, and writes a
-new MP4 with the video stream untouched. You get one video per language, plus subtitles.
-
-| Home | API keys | Dubbing | Results |
-|---|---|---|---|
-| ![home](screenshots/01-home.png) | ![keys](screenshots/02-providers.png) | ![progress](screenshots/03-progress.png) | ![results](screenshots/04-results.png) |
 
 ## Download
 
@@ -370,4 +368,5 @@ If you like this app and our work, please **star this repository** ⭐ and **[fo
 - **Telugu** (తెలుగు): ⭐ మీకు ఈ యాప్, మా పని నచ్చితే, దయచేసి రిపోజిటరీకి ఒక స్టార్ ఇచ్చి మమ్మల్ని ఫాలో అవ్వండి. ఒకవేళ మా పని మీకు నచ్చకపోతే, పర్వాలేదు — అది మీ ఇష్టం. మమ్మల్ని సందర్శించినందుకు ధన్యవాదాలు!
 
 </details>
+
 
