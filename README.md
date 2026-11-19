@@ -1,10 +1,10 @@
 <div align="center">
 
+<img src="assets/icon.png" width="96" height="96" alt="Dub any video into 10 Indian languages or English icon">
+
+<img src="assets/banner.svg" alt="Dub any video into 10 Indian languages or English — on your phone">
+
 <a href="https://github.com/technicalnihilist-lgtm/dubstudio/stargazers"><img src="https://img.shields.io/badge/stars-0-5A31F4?style=for-the-badge&logo=github&logoColor=white" alt="stars: 0"></a>&nbsp;<a href="https://github.com/technicalnihilist-lgtm/dubstudio/network/members"><img src="https://img.shields.io/badge/forks-0-3FB950?style=for-the-badge" alt="forks: 0"></a>
-
-<h3>Dub any video into 10 Indian languages or English — on your phone</h3>
-
-<img src="https://img.shields.io/badge/Java-5865F2?style=flat-square" alt="Java"> <img src="https://img.shields.io/badge/Ai-3B3F4A?style=flat-square" alt="Ai"> <img src="https://img.shields.io/badge/Android-3FB950?style=flat-square" alt="Android"> <img src="https://img.shields.io/badge/APK-EC4899?style=flat-square" alt="APK">
 
 <a href="https://github.com/technicalnihilist-lgtm/dubstudio/releases/latest"><img src="https://img.shields.io/badge/DOWNLOAD-APK-6D5AE6?style=for-the-badge&logo=android&logoColor=white" alt="Download APK"></a>
 
@@ -16,15 +16,17 @@
 
 <a href="https://github.com/technicalnihilist-lgtm/dubstudio/releases/latest"><img src="https://img.shields.io/badge/VERSION-v1.4-6D5AE6?style=for-the-badge" alt="VERSION: v1.4"></a> <img src="https://img.shields.io/badge/DOWNLOADS-21-3FB950?style=for-the-badge" alt="DOWNLOADS: 21"> <a href="https://github.com/technicalnihilist-lgtm/dubstudio/releases"><img src="https://img.shields.io/badge/RELEASES-GITHUB-EC4899?style=for-the-badge&logo=github&logoColor=white" alt="RELEASES: GITHUB"></a>
 
-<h4>Get it from</h4>
-
-<a href="https://github.com/technicalnihilist-lgtm/dubstudio/releases"><img src="https://img.shields.io/badge/GitHub-Releases-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Releases"></a> <a href="https://github.com/technicalnihilist-lgtm/dubstudio/archive/refs/heads/main.zip"><img src="https://img.shields.io/badge/Source-ZIP-0EA5E9?style=for-the-badge&logo=github&logoColor=white" alt="Source ZIP"></a>
-
 </div>
 
 ---
 
 ---
+
+## Screenshots
+
+| Home | API keys | Dubbing | Results |
+|---|---|---|---|
+| ![home](screenshots/01-home.png) | ![keys](screenshots/02-providers.png) | ![progress](screenshots/03-progress.png) | ![results](screenshots/04-results.png) |
 
 ## Download
 
